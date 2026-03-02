@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F2F2F7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Tarefas Diárias Pro</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        appleBlue: '#007AFF',
+                        appleRed: '#FF3B30',
+                        appleGreen: '#34C759',
+                        iosBg: '#F2F2F7',
+                    },
+                    borderRadius: { 'ios': '12px', 'ios-lg': '20px' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .slide-card { scroll-snap-align: start; flex-shrink: 0; transition: all 0.3s ease; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        #taskSlider { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Checkbox Estilo iOS */
+        input[type="checkbox"] {
+            -webkit-appearance: none; appearance: none; background-color: #fff; margin: 0;
+            width: 1.3em; height: 1.3em; border: 1px solid #C7C7CC; border-radius: 50%;
+            display: grid; place-content: center; transition: 0.2s;
+        }
+        input[type="checkbox"]:checked { background-color: var(--checked-color); border-color: var(--checked-color); }
+        input[type="checkbox"]:checked::after { content: "✓"; color: white; font-size: 0.8rem; font-weight: bold; }
+
+        /* Barra de Progresso */
+        .progress-bar { height: 4px; border-radius: 2px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-iosBg text-black antialiased">
+
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/30 z-40 opacity-0 pointer-events-none transition-opacity"></div>
+
+    <div id="sidebar" class="fixed top-0 left-0 h-full w-72 bg-white/95 backdrop-blur-xl z-50 p-6 transform -translate-x-full shadow-2xl rounded-r-ios-lg">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-bold tracking-tight">Opções</h2>
+            <button onclick="toggleSidebar()" class="text-appleBlue font-semibold text-lg">OK</button>
+        </div>
+        
+        <div class="space-y-4">
+            <button id="installBtn" class="hidden w-full bg-appleBlue text-white p-4 rounded-ios font-bold shadow-md flex items-center justify-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Instalar App
+            </button>
+
+            <div class="bg-iosBg rounded-ios p-3 space-y-2">
+                <h3 class="text-xs uppercase text-gray-400 font-bold ml-1">Sincronização</h3>
+                <button onclick="exportBackup()" class="w-full text-left bg-white p-3 rounded-ios text-appleBlue font-medium shadow-sm">Exportar JSON</button>
+                <label class="block w-full text-left bg-white p-3 rounded-ios text-appleBlue font-medium shadow-sm cursor-pointer text-center">
+                    Importar JSON
+                    <input type="file" id="importInput" class="hidden" onchange="importBackup(event)">
+                </label>
+            </div>
+
+            <button onclick="resetFactory()" class="w-full text-appleRed p-4 rounded-ios font-bold bg-red-50">Restaurar de Fábrica</button>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 pb-24">
+        <header class="py-6 flex justify-between items-end sticky top-0 bg-iosBg/90 backdrop-blur-md z-30">
+            <div>
+                <p id="currentMonthDisplay" class="text-appleRed text-sm font-bold uppercase tracking-widest"></p>
+                <h1 id="currentDayNumDisplay" class="text-5xl font-black tracking-tighter"></h1>
+            </div>
+            <button onclick="toggleSidebar()" class="text-appleBlue p-3 bg-white rounded-full shadow-sm active:bg-gray-100 transition">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+        </header>
+
+        <div class="mb-8 bg-white p-3 rounded-ios-lg shadow-sm">
+            <div class="relative">
+                <input type="date" id="dateSelector" class="w-full pl-10 pr-4 py-3 bg-iosBg rounded-ios font-semibold appearance-none outline-none">
+                <svg class="absolute left-3 top-3.5 text-appleBlue" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-bold mb-4 px-1 flex justify-between items-center">
+            Suas Tarefas <span id="taskCount" class="text-sm font-normal text-gray-400 bg-white px-3 py-1 rounded-full shadow-inner">0</span>
+        </h2>
+
+        <div id="taskSlider" class="flex overflow-x-auto space-x-4 pb-6 no-scrollbar"></div>
+
+        <button onclick="openAddModal()" class="fixed bottom-8 right-6 bg-appleBlue text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition transform duration-200">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+    </div>
+
+    <div id="addModal" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-6 backdrop-blur-sm">
+        <div class="bg-white rounded-ios-lg p-6 w-full max-w-sm shadow-2xl scale-100">
+            <h3 class="text-xl font-bold mb-4">Nova Atividade</h3>
+            <input type="text" id="newTaskTitle" placeholder="O que precisa ser feito?" class="w-full p-4 bg-iosBg rounded-ios mb-3 outline-none font-medium">
+            <textarea id="newTaskItems" placeholder="Sub-tarefas (uma por linha)" class="w-full p-4 bg-iosBg rounded-ios mb-6 h-32 outline-none text-sm"></textarea>
+            <div class="flex gap-4">
+                <button onclick="closeAddModal()" class="flex-1 py-3 text-gray-400 font-bold">Cancelar</button>
+                <button onclick="saveNewTask()" class="flex-1 bg-appleBlue text-white py-3 rounded-ios font-bold shadow-md">Criar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PWA Lógica de Instalação
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBtn').classList.remove('hidden');
+        });
+
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') document.getElementById('installBtn').classList.add('hidden');
+                deferredPrompt = null;
+            }
+        });
+
+        // Banco de Dados
+        let db = JSON.parse(localStorage.getItem('taskDB_v3')) || { tasks: [] };
+
+        function save() {
+            localStorage.setItem('taskDB_v3', JSON.stringify(db));
+            renderTasks(document.getElementById('dateSelector').value);
+        }
+
+        function renderTasks(date) {
+            const container = document.getElementById('taskSlider');
+            const filtered = db.tasks.filter(t => t.date === date);
+            document.getElementById('taskCount').innerText = filtered.length;
+            container.innerHTML = '';
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div class="w-full bg-white/40 border-2 border-dashed border-gray-300 rounded-ios-lg p-16 text-center text-gray-400">Nenhum plano para este dia.</div>`;
+                return;
+            }
+
+            filtered.forEach(task => {
+                const total = task.items.length;
+                const doneCount = task.items.filter(i => i.done).length;
+                const percent = total > 0 ? (doneCount / total) * 100 : 0;
+                const isAllDone = percent === 100;
+                const color = isAllDone ? 'appleGreen' : 'appleRed';
+
+                const card = document.createElement('div');
+                card.className = `slide-card w-[88%] md:w-80 bg-white p-5 rounded-ios-lg shadow-lg border-t-8 border-${color} flex flex-col relative`;
+                card.innerHTML = `
+                    <div class="absolute top-0 left-0 w-full bg-gray-100 h-1 overflow-hidden">
+                        <div class="progress-bar bg-${color}" style="width: ${percent}%"></div>
+                    </div>
+                    
+                    <div class="flex-grow pt-2" style="--checked-color: ${isAllDone ? '#34C759' : '#FF3B30'}">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-black text-xl leading-tight text-gray-900">${task.title}</h3>
+                            <button onclick="deleteTask(${task.id})" class="text-gray-300">✕</button>
+                        </div>
+                        <ul class="space-y-4 mb-6">
+                            ${task.items.map((item, idx) => `
+                                <li class="flex items-center gap-3">
+                                    <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleItem(${task.id}, ${idx})">
+                                    <span class="text-base ${item.done ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}">${item.text}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-4">
+                        <button onclick="bulkStatus(${task.id}, true)" class="text-xs font-black py-3 rounded-ios bg-appleGreen/10 text-appleGreen uppercase">Concluir</button>
+                        <button onclick="bulkStatus(${task.id}, false)" class="text-xs font-black py-3 rounded-ios bg-appleRed/10 text-appleRed uppercase">Resetar</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Eventos e UI
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('dateSelector').value = today;
+            updateHeader(new Date());
+            renderTasks(today);
+        });
+
+        function updateHeader(date) {
+            document.getElementById('currentMonthDisplay').innerText = date.toLocaleDateString('pt-BR', { month: 'long' });
+            document.getElementById('currentDayNumDisplay').innerText = date.toLocaleDateString('pt-BR', { day: 'numeric' });
+        }
+
+        document.getElementById('dateSelector').onchange = (e) => {
+            const d = e.target.value.split('-');
+            updateHeader(new Date(d[0], d[1]-1, d[2]));
+            renderTasks(e.target.value);
+        };
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebarOverlay').classList.toggle('opacity-0');
+            document.getElementById('sidebarOverlay').classList.toggle('pointer-events-none');
+        }
+
+        // Funções de Gerenciamento
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+        
+        function saveNewTask() {
+            const title = document.getElementById('newTaskTitle').value;
+            const items = document.getElementById('newTaskItems').value.split('\n').filter(i => i.trim() !== "");
+            if(!title || items.length === 0) return;
+            db.tasks.push({ id: Date.now(), date: document.getElementById('dateSelector').value, title, items: items.map(text => ({text, done: false})) });
+            save();
+            closeAddModal();
+            document.getElementById('newTaskTitle').value = ""; document.getElementById('newTaskItems').value = "";
+        }
+
+        function toggleItem(taskId, idx) {
+            const t = db.tasks.find(x => x.id === taskId);
+            t.items[idx].done = !t.items[idx].done;
+            save();
+        }
+
+        function bulkStatus(id, s) {
+            db.tasks.find(x => x.id === id).items.forEach(i => i.done = s);
+            save();
+        }
+
+        function deleteTask(id) { if(confirm('Apagar esta tarefa?')) { db.tasks = db.tasks.filter(x => x.id !== id); save(); } }
+        
+        function exportBackup() {
+            const a = document.createElement('a');
+            a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            a.download = "backup_tarefas.json"; a.click();
+        }
+
+        function importBackup(e) {
+            const reader = new FileReader();
+            reader.onload = (ev) => { db = JSON.parse(ev.target.result); save(); toggleSidebar(); };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        function resetFactory() { if(confirm('Isso apagará TUDO. Deseja continuar?')) { db = {tasks:[]}; save(); location.reload(); } }
+
+        // Registrar Service Worker (Falso p/ permitir install no Chrome)
+        if ('serviceWorker' in navigator) {
+            const sw = 'self.addEventListener("fetch", (e) => { e.respondWith(fetch(e.request)); });';
+            const blob = new Blob([sw], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(url);
+        }
+    </script>
+</body>
+</html>
