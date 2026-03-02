@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#F2F2F7">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Tarefas Pro">
     <title>Tarefas Diárias Pro</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -32,7 +33,6 @@
         #taskSlider { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
         #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        /* Checkbox Estilo iOS */
         input[type="checkbox"] {
             -webkit-appearance: none; appearance: none; background-color: #fff; margin: 0;
             width: 1.3em; height: 1.3em; border: 1px solid #C7C7CC; border-radius: 50%;
@@ -41,7 +41,6 @@
         input[type="checkbox"]:checked { background-color: var(--checked-color); border-color: var(--checked-color); }
         input[type="checkbox"]:checked::after { content: "✓"; color: white; font-size: 0.8rem; font-weight: bold; }
 
-        /* Barra de Progresso */
         .progress-bar { height: 4px; border-radius: 2px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
@@ -56,7 +55,7 @@
         </div>
         
         <div class="space-y-4">
-            <button id="installBtn" class="hidden w-full bg-appleBlue text-white p-4 rounded-ios font-bold shadow-md flex items-center justify-center gap-2">
+            <button id="installBtn" class="hidden w-full bg-appleBlue text-white p-4 rounded-ios font-bold shadow-md flex items-center justify-center gap-2 active:scale-95 transition">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Instalar App
             </button>
@@ -116,8 +115,37 @@
     </div>
 
     <script>
-        // PWA Lógica de Instalação
+        // --- LÓGICA DE INSTALAÇÃO (PWA AUTO-CONTIDO) ---
         let deferredPrompt;
+
+        // Criar Manifest Dinamicamente
+        const manifest = {
+            "name": "Tarefas Diárias Pro",
+            "short_name": "TarefasPro",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#F2F2F7",
+            "theme_color": "#007AFF",
+            "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/4345/4345573.png", "sizes": "512x512", "type": "image/png" }]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestURL;
+        document.head.appendChild(link);
+
+        // Registrar Service Worker via Blob (Permite instalação sem arquivo .js separado)
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+            `;
+            const swBlob = new Blob([swCode], {type: 'text/javascript'});
+            const swURL = URL.createObjectURL(swBlob);
+            navigator.serviceWorker.register(swURL);
+        }
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
@@ -133,7 +161,7 @@
             }
         });
 
-        // Banco de Dados
+        // --- LÓGICA DO APLICATIVO ---
         let db = JSON.parse(localStorage.getItem('taskDB_v3')) || { tasks: [] };
 
         function save() {
@@ -160,16 +188,15 @@
                 const color = isAllDone ? 'appleGreen' : 'appleRed';
 
                 const card = document.createElement('div');
-                card.className = `slide-card w-[88%] md:w-80 bg-white p-5 rounded-ios-lg shadow-lg border-t-8 border-${color} flex flex-col relative`;
+                card.className = `slide-card w-[88%] md:w-80 bg-white p-5 rounded-ios-lg shadow-lg border-t-8 border-${isAllDone ? 'appleGreen' : 'appleRed'} flex flex-col relative`;
                 card.innerHTML = `
                     <div class="absolute top-0 left-0 w-full bg-gray-100 h-1 overflow-hidden">
                         <div class="progress-bar bg-${color}" style="width: ${percent}%"></div>
                     </div>
-                    
                     <div class="flex-grow pt-2" style="--checked-color: ${isAllDone ? '#34C759' : '#FF3B30'}">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-black text-xl leading-tight text-gray-900">${task.title}</h3>
-                            <button onclick="deleteTask(${task.id})" class="text-gray-300">✕</button>
+                            <button onclick="deleteTask(${task.id})" class="text-gray-300 hover:text-appleRed transition">✕</button>
                         </div>
                         <ul class="space-y-4 mb-6">
                             ${task.items.map((item, idx) => `
@@ -180,17 +207,15 @@
                             `).join('')}
                         </ul>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-3 pt-4">
-                        <button onclick="bulkStatus(${task.id}, true)" class="text-xs font-black py-3 rounded-ios bg-appleGreen/10 text-appleGreen uppercase">Concluir</button>
-                        <button onclick="bulkStatus(${task.id}, false)" class="text-xs font-black py-3 rounded-ios bg-appleRed/10 text-appleRed uppercase">Resetar</button>
+                    <div class="grid grid-cols-2 gap-3 pt-4 border-t border-gray-50">
+                        <button onclick="bulkStatus(${task.id}, true)" class="text-xs font-black py-3 rounded-ios bg-appleGreen/10 text-appleGreen uppercase active:bg-appleGreen active:text-white transition">Concluir</button>
+                        <button onclick="bulkStatus(${task.id}, false)" class="text-xs font-black py-3 rounded-ios bg-appleRed/10 text-appleRed uppercase active:bg-appleRed active:text-white transition">Resetar</button>
                     </div>
                 `;
                 container.appendChild(card);
             });
         }
 
-        // Eventos e UI
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('dateSelector').value = today;
@@ -215,7 +240,6 @@
             document.getElementById('sidebarOverlay').classList.toggle('pointer-events-none');
         }
 
-        // Funções de Gerenciamento
         function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
         function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
         
@@ -240,7 +264,7 @@
             save();
         }
 
-        function deleteTask(id) { if(confirm('Apagar esta tarefa?')) { db.tasks = db.tasks.filter(x => x.id !== id); save(); } }
+        function deleteTask(id) { if(confirm('Excluir tarefa permanentemente?')) { db.tasks = db.tasks.filter(x => x.id !== id); save(); } }
         
         function exportBackup() {
             const a = document.createElement('a');
@@ -254,15 +278,7 @@
             reader.readAsText(e.target.files[0]);
         }
 
-        function resetFactory() { if(confirm('Isso apagará TUDO. Deseja continuar?')) { db = {tasks:[]}; save(); location.reload(); } }
-
-        // Registrar Service Worker (Falso p/ permitir install no Chrome)
-        if ('serviceWorker' in navigator) {
-            const sw = 'self.addEventListener("fetch", (e) => { e.respondWith(fetch(e.request)); });';
-            const blob = new Blob([sw], { type: 'application/javascript' });
-            const url = URL.createObjectURL(blob);
-            navigator.serviceWorker.register(url);
-        }
+        function resetFactory() { if(confirm('Apagar todos os dados e restaurar padrão?')) { db = {tasks:[]}; save(); location.reload(); } }
     </script>
 </body>
 </html>
