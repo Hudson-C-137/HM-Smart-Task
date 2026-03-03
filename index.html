@@ -19,6 +19,7 @@
                         appleRed: '#FF3B30',
                         appleGreen: '#34C759',
                         iosBg: '#F2F2F7',
+                        iosGray: '#E5E5EA'
                     },
                     borderRadius: { 'ios': '12px', 'ios-lg': '20px' }
                 }
@@ -33,15 +34,20 @@
         #taskSlider { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
         #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        input[type="checkbox"] {
+        input[type="checkbox"].task-check {
             -webkit-appearance: none; appearance: none; background-color: #fff; margin: 0;
             width: 1.3em; height: 1.3em; border: 1px solid #C7C7CC; border-radius: 50%;
             display: grid; place-content: center; transition: 0.2s;
         }
-        input[type="checkbox"]:checked { background-color: var(--checked-color); border-color: var(--checked-color); }
-        input[type="checkbox"]:checked::after { content: "✓"; color: white; font-size: 0.8rem; font-weight: bold; }
+        input[type="checkbox"].task-check:checked { background-color: var(--checked-color); border-color: var(--checked-color); }
+        input[type="checkbox"].task-check:checked::after { content: "✓"; color: white; font-size: 0.8rem; font-weight: bold; }
 
         .progress-bar { height: 4px; border-radius: 2px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .month-select {
+            appearance: none; background: transparent; border: none; font-weight: 700; color: #007AFF; cursor: pointer; outline: none; font-size: 0.9rem;
+            padding: 4px 8px;
+        }
     </style>
 </head>
 <body class="bg-iosBg text-black antialiased">
@@ -100,13 +106,21 @@
 
         <div id="taskSlider" class="flex overflow-x-auto space-x-4 pb-6 no-scrollbar"></div>
 
+        <button onclick="openDetailModal()" class="fixed bottom-8 left-6 bg-appleBlue text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition transform duration-200">
+             <div class="flex flex-col gap-1.5 items-center justify-center">
+                <div class="w-6 h-1 bg-white rounded-full"></div>
+                <div class="w-6 h-1 bg-white rounded-full"></div>
+                <div class="w-6 h-1 bg-white rounded-full"></div>
+             </div>
+        </button>
+
         <button onclick="openAddModal()" class="fixed bottom-8 right-6 bg-appleBlue text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition transform duration-200">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </button>
     </div>
 
     <div id="addModal" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-6 backdrop-blur-sm">
-        <div class="bg-white rounded-ios-lg p-6 w-full max-sm shadow-2xl scale-100">
+        <div class="bg-white rounded-ios-lg p-6 w-full max-sm shadow-2xl">
             <h3 class="text-xl font-bold mb-4">Nova Atividade</h3>
             <input type="text" id="newTaskTitle" placeholder="O que precisa ser feito?" class="w-full p-4 bg-iosBg rounded-ios mb-3 outline-none font-medium">
             <textarea id="newTaskItems" placeholder="Sub-tarefas (uma por linha)" class="w-full p-4 bg-iosBg rounded-ios mb-6 h-32 outline-none text-sm"></textarea>
@@ -117,77 +131,61 @@
         </div>
     </div>
 
+    <div id="detailModal" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-ios-lg w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-6 border-b border-gray-100 bg-white">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold">Lista Detalhada</h3>
+                    <button onclick="closeDetailModal()" class="text-appleBlue font-bold text-lg">Pronto</button>
+                </div>
+                
+                <div class="flex flex-col gap-3 bg-iosBg p-4 rounded-ios-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-appleRed rounded-lg shadow-sm flex flex-col items-center justify-center overflow-hidden border border-appleRed">
+                            <div class="bg-white w-full text-[10px] text-center font-bold text-appleRed py-0.5 uppercase" id="calIconMonth">MAR</div>
+                            <div class="text-white text-xl font-black leading-none" id="calIconYear">26</div>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Navegar no Histórico</p>
+                            <div class="flex items-center gap-2">
+                                <select id="monthFilter" class="month-select" onchange="renderDetailList()">
+                                    <option value="01">Janeiro</option><option value="02">Fevereiro</option>
+                                    <option value="03">Março</option><option value="04">Abril</option>
+                                    <option value="05">Maio</option><option value="06">Junho</option>
+                                    <option value="07">Julho</option><option value="08">Agosto</option>
+                                    <option value="09">Setembro</option><option value="10">Outubro</option>
+                                    <option value="11">Novembro</option><option value="12">Dezembro</option>
+                                </select>
+                                <span class="text-gray-300">|</span>
+                                <select id="yearFilter" class="month-select" onchange="renderDetailList()">
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="detailListContainer" class="flex-grow overflow-y-auto p-4 space-y-3 bg-iosBg/30">
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- LÓGICA DE INSTALAÇÃO E SERVICE WORKER REFORÇADO ---
-        let deferredPrompt;
-        const CACHE_NAME = 'tarefas-pro-v4'; // Versão do Cache
-
-        const manifest = {
-            "name": "Tarefas Diárias Pro",
-            "short_name": "TarefasPro",
-            "start_url": "./",
-            "display": "standalone",
-            "background_color": "#F2F2F7",
-            "theme_color": "#007AFF",
-            "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/4345/4345573.png", "sizes": "512x512", "type": "image/png" }]
-        };
-        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(manifestBlob);
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestURL;
-        document.head.appendChild(link);
-
+        // --- SERVICE WORKER ---
+        const CACHE_NAME = 'tarefas-pro-v11';
         if ('serviceWorker' in navigator) {
             const swCode = `
                 const CACHE_NAME = '${CACHE_NAME}';
-                const ASSETS = [
-                    './',
-                    'https://cdn.tailwindcss.com'
-                ];
-
-                self.addEventListener('install', e => {
-                    e.waitUntil(
-                        caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
-                    );
-                    self.skipWaiting();
-                });
-
-                self.addEventListener('activate', e => {
-                    e.waitUntil(
-                        caches.keys().then(keys => Promise.all(
-                            keys.map(key => { if(key !== CACHE_NAME) return caches.delete(key); })
-                        ))
-                    );
-                });
-
-                self.addEventListener('fetch', e => {
-                    e.respondWith(
-                        fetch(e.request).catch(() => caches.match(e.request))
-                    );
-                });
+                const ASSETS = ['./', 'https://cdn.tailwindcss.com'];
+                self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))); self.skipWaiting(); });
+                self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.map(k => k !== CACHE_NAME && caches.delete(k))))));
+                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
             `;
             const swBlob = new Blob([swCode], {type: 'text/javascript'});
-            const swURL = URL.createObjectURL(swBlob);
-            navigator.serviceWorker.register(swURL);
+            navigator.serviceWorker.register(URL.createObjectURL(swBlob));
         }
 
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installBtn').classList.remove('hidden');
-        });
-
-        document.getElementById('installBtn').addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') document.getElementById('installBtn').classList.add('hidden');
-                deferredPrompt = null;
-            }
-        });
-
-        // --- LÓGICA DO APLICATIVO ---
+        // --- APP LOGIC ---
         let db = JSON.parse(localStorage.getItem('taskDB_v3')) || { tasks: [] };
 
         function save() {
@@ -207,18 +205,15 @@
             }
 
             filtered.forEach(task => {
-                const total = task.items.length;
                 const doneCount = task.items.filter(i => i.done).length;
-                const percent = total > 0 ? (doneCount / total) * 100 : 0;
+                const percent = (doneCount / task.items.length) * 100;
                 const isAllDone = percent === 100;
                 const color = isAllDone ? 'appleGreen' : 'appleRed';
 
                 const card = document.createElement('div');
-                card.className = `slide-card w-[88%] md:w-80 bg-white p-5 rounded-ios-lg shadow-lg border-t-8 border-${isAllDone ? 'appleGreen' : 'appleRed'} flex flex-col relative`;
+                card.className = `slide-card w-[88%] md:w-80 bg-white p-5 rounded-ios-lg shadow-lg border-t-8 border-${color} flex flex-col relative`;
                 card.innerHTML = `
-                    <div class="absolute top-0 left-0 w-full bg-gray-100 h-1 overflow-hidden">
-                        <div class="progress-bar bg-${color}" style="width: ${percent}%"></div>
-                    </div>
+                    <div class="absolute top-0 left-0 w-full bg-gray-100 h-1 overflow-hidden"><div class="progress-bar bg-${color}" style="width: ${percent}%"></div></div>
                     <div class="flex-grow pt-2" style="--checked-color: ${isAllDone ? '#34C759' : '#FF3B30'}">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-black text-xl leading-tight text-gray-900">${task.title}</h3>
@@ -227,21 +222,102 @@
                         <ul class="space-y-4 mb-6">
                             ${task.items.map((item, idx) => `
                                 <li class="flex items-center gap-3">
-                                    <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleItem(${task.id}, ${idx})">
+                                    <input type="checkbox" class="task-check" ${item.done ? 'checked' : ''} onchange="toggleItem(${task.id}, ${idx})">
                                     <span class="text-base ${item.done ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}">${item.text}</span>
                                 </li>
                             `).join('')}
                         </ul>
                     </div>
                     <div class="grid grid-cols-2 gap-3 pt-4 border-t border-gray-50">
-                        <button onclick="bulkStatus(${task.id}, true)" class="text-xs font-black py-3 rounded-ios bg-appleGreen/10 text-appleGreen uppercase active:bg-appleGreen active:text-white transition">Concluir</button>
-                        <button onclick="bulkStatus(${task.id}, false)" class="text-xs font-black py-3 rounded-ios bg-appleRed/10 text-appleRed uppercase active:bg-appleRed active:text-white transition">Resetar</button>
+                        <button onclick="bulkStatus(${task.id}, true)" class="text-xs font-black py-3 rounded-ios bg-appleGreen/10 text-appleGreen uppercase">Concluir</button>
+                        <button onclick="bulkStatus(${task.id}, false)" class="text-xs font-black py-3 rounded-ios bg-appleRed/10 text-appleRed uppercase">Resetar</button>
                     </div>
                 `;
                 container.appendChild(card);
             });
         }
 
+        // --- DETALHADO LOGIC ---
+        function populateYearSelector() {
+            const yearSelect = document.getElementById('yearFilter');
+            yearSelect.innerHTML = '';
+            
+            // Requisito: Opções de 1991 até 2099
+            for (let y = 1991; y <= 2099; y++) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.innerText = y;
+                yearSelect.appendChild(opt);
+            }
+        }
+
+        function openDetailModal() {
+            populateYearSelector();
+            const now = new Date();
+            document.getElementById('monthFilter').value = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('yearFilter').value = now.getFullYear();
+            
+            document.getElementById('detailModal').classList.remove('hidden');
+            renderDetailList();
+        }
+
+        function closeDetailModal() { document.getElementById('detailModal').classList.add('hidden'); }
+
+        function renderDetailList() {
+            const container = document.getElementById('detailListContainer');
+            const selectedMonth = document.getElementById('monthFilter').value;
+            const selectedYear = document.getElementById('yearFilter').value;
+            
+            // Atualiza Mini Calendário
+            const monthsShort = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+            document.getElementById('calIconMonth').innerText = monthsShort[parseInt(selectedMonth)-1];
+            document.getElementById('calIconYear').innerText = selectedYear.toString().slice(-2);
+
+            let filteredTasks = db.tasks.filter(t => {
+                const parts = t.date.split('-');
+                return parts[0] === selectedYear && parts[1] === selectedMonth;
+            });
+
+            filteredTasks.sort((a, b) => a.date.localeCompare(b.date));
+            container.innerHTML = '';
+
+            if(filteredTasks.length === 0) {
+                container.innerHTML = `<div class="text-center p-10 text-gray-400 italic">Sem registros para este período.</div>`;
+                return;
+            }
+
+            let lastDate = "";
+            filteredTasks.forEach(task => {
+                if(task.date !== lastDate) {
+                    const dateObj = new Date(task.date + 'T12:00:00');
+                    const dateHeader = document.createElement('div');
+                    dateHeader.className = "text-xs font-bold text-appleBlue uppercase mt-4 mb-1 ml-1";
+                    dateHeader.innerText = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+                    container.appendChild(dateHeader);
+                    lastDate = task.date;
+                }
+
+                const item = document.createElement('div');
+                item.className = "bg-white p-4 rounded-ios shadow-sm flex justify-between items-center active:bg-gray-50 transition border-l-4 border-appleBlue/20";
+                item.onclick = () => {
+                    document.getElementById('dateSelector').value = task.date;
+                    document.getElementById('dateSelector').dispatchEvent(new Event('change'));
+                    closeDetailModal();
+                };
+                
+                const doneCount = task.items.filter(i => i.done).length;
+                item.innerHTML = `
+                    <div>
+                        <p class="font-bold text-gray-800">${task.title}</p>
+                        <p class="text-[11px] text-gray-400 font-medium">${task.items.length} SUBTAREFAS • ${doneCount} CONCLUÍDAS</p>
+                    </div>
+                    <svg class="text-appleBlue/30" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // --- AUXILIARES ---
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('dateSelector').value = today;
@@ -253,18 +329,12 @@
             if (isNaN(date.getTime())) return;
             document.getElementById('currentMonthDisplay').innerText = date.toLocaleDateString('pt-BR', { month: 'long' });
             document.getElementById('currentDayNumDisplay').innerText = date.toLocaleDateString('pt-BR', { day: 'numeric' });
-            const dayName = date.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0];
-            document.getElementById('currentDayNameDisplay').innerText = dayName;
+            document.getElementById('currentDayNameDisplay').innerText = date.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0];
         }
 
         document.getElementById('dateSelector').onchange = (e) => {
-            let val = e.target.value;
-            if (!val) {
-                val = new Date().toISOString().split('T')[0];
-                document.getElementById('dateSelector').value = val;
-            }
-            const d = new Date(val + 'T12:00:00');
-            updateHeader(d);
+            const val = e.target.value || new Date().toISOString().split('T')[0];
+            updateHeader(new Date(val + 'T12:00:00'));
             renderTasks(val);
         };
 
@@ -282,37 +352,28 @@
             const items = document.getElementById('newTaskItems').value.split('\n').filter(i => i.trim() !== "");
             if(!title || items.length === 0) return;
             db.tasks.push({ id: Date.now(), date: document.getElementById('dateSelector').value, title, items: items.map(text => ({text, done: false})) });
-            save();
-            closeAddModal();
+            save(); closeAddModal();
             document.getElementById('newTaskTitle').value = ""; document.getElementById('newTaskItems').value = "";
         }
 
         function toggleItem(taskId, idx) {
             const t = db.tasks.find(x => x.id === taskId);
-            t.items[idx].done = !t.items[idx].done;
-            save();
+            t.items[idx].done = !t.items[idx].done; save();
         }
 
-        function bulkStatus(id, s) {
-            db.tasks.find(x => x.id === id).items.forEach(i => i.done = s);
-            save();
-        }
-
-        function deleteTask(id) { if(confirm('Excluir tarefa permanentemente?')) { db.tasks = db.tasks.filter(x => x.id !== id); save(); } }
-        
+        function bulkStatus(id, s) { db.tasks.find(x => x.id === id).items.forEach(i => i.done = s); save(); }
+        function deleteTask(id) { if(confirm('Excluir tarefa?')) { db.tasks = db.tasks.filter(x => x.id !== id); save(); } }
         function exportBackup() {
             const a = document.createElement('a');
             a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
-            a.download = "backup_tarefas.json"; a.click();
+            a.download = "backup.json"; a.click();
         }
-
         function importBackup(e) {
             const reader = new FileReader();
             reader.onload = (ev) => { db = JSON.parse(ev.target.result); save(); toggleSidebar(); };
             reader.readAsText(e.target.files[0]);
         }
-
-        function resetFactory() { if(confirm('Apagar todos os dados e restaurar padrão?')) { db = {tasks:[]}; save(); location.reload(); } }
+        function resetFactory() { if(confirm('Apagar tudo?')) { db = {tasks:[]}; save(); location.reload(); } }
     </script>
 </body>
 </html>
