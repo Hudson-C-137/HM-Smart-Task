@@ -79,6 +79,9 @@
                 <p id="currentMonthDisplay" class="text-appleRed text-sm font-bold uppercase tracking-widest"></p>
                 <h1 id="currentDayNumDisplay" class="text-5xl font-black tracking-tighter"></h1>
             </div>
+            
+            <h2 id="currentDayNameDisplay" class="text-3xl font-black uppercase tracking-tight absolute left-1/2 -translate-x-1/2 bottom-7"></h2>
+
             <button onclick="toggleSidebar()" class="text-appleBlue p-3 bg-white rounded-full shadow-sm active:bg-gray-100 transition">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
@@ -118,7 +121,6 @@
         // --- LÓGICA DE INSTALAÇÃO (PWA AUTO-CONTIDO) ---
         let deferredPrompt;
 
-        // Criar Manifest Dinamicamente
         const manifest = {
             "name": "Tarefas Diárias Pro",
             "short_name": "TarefasPro",
@@ -135,7 +137,6 @@
         link.href = manifestURL;
         document.head.appendChild(link);
 
-        // Registrar Service Worker via Blob (Permite instalação sem arquivo .js separado)
         if ('serviceWorker' in navigator) {
             const swCode = `
                 self.addEventListener('install', e => self.skipWaiting());
@@ -224,14 +225,22 @@
         });
 
         function updateHeader(date) {
+            // Ajuste para evitar erro de fuso horário na exibição do nome do dia
+            const localizedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+            
             document.getElementById('currentMonthDisplay').innerText = date.toLocaleDateString('pt-BR', { month: 'long' });
             document.getElementById('currentDayNumDisplay').innerText = date.toLocaleDateString('pt-BR', { day: 'numeric' });
+            
+            // Atualiza o nome do dia (TERÇA, QUARTA, etc)
+            const dayName = date.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0];
+            document.getElementById('currentDayNameDisplay').innerText = dayName;
         }
 
         document.getElementById('dateSelector').onchange = (e) => {
-            const d = e.target.value.split('-');
-            updateHeader(new Date(d[0], d[1]-1, d[2]));
-            renderTasks(e.target.value);
+            const val = e.target.value;
+            const d = new Date(val + 'T12:00:00'); // T12:00 garante que pegue o dia certo independente do fuso
+            updateHeader(d);
+            renderTasks(val);
         };
 
         function toggleSidebar() {
