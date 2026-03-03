@@ -7,6 +7,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Tarefas Pro">
+    
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4345/4345573.png">
+    
     <title>Tarefas Diárias Pro</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -171,15 +174,64 @@
     </div>
 
     <script>
+        // --- CONFIGURAÇÃO PWA (MANIFESTO DINÂMICO) ---
+        const manifest = {
+            "name": "Tarefas Diárias Pro",
+            "short_name": "Tarefas Pro",
+            "start_url": "./",
+            "display": "standalone",
+            "background_color": "#F2F2F7",
+            "theme_color": "#007AFF",
+            "icons": [{
+                "src": "https://cdn-icons-png.flaticon.com/512/4345/4345573.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const manifestTag = document.createElement('link');
+        manifestTag.rel = 'manifest';
+        manifestTag.href = manifestURL;
+        document.head.appendChild(manifestTag);
+
+        // --- LÓGICA DE INSTALAÇÃO ---
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.classList.remove('hidden'); // Mostra o botão se puder instalar
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                installBtn.classList.add('hidden');
+            }
+            deferredPrompt = null;
+        });
+
         // --- SERVICE WORKER ---
-        const CACHE_NAME = 'tarefas-pro-v11';
+        const CACHE_NAME = 'tarefas-pro-v12';
         if ('serviceWorker' in navigator) {
             const swCode = `
                 const CACHE_NAME = '${CACHE_NAME}';
-                const ASSETS = ['./', 'https://cdn.tailwindcss.com'];
-                self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))); self.skipWaiting(); });
-                self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.map(k => k !== CACHE_NAME && caches.delete(k))))));
-                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+                const ASSETS = ['./', window.location.href, 'https://cdn.tailwindcss.com'];
+                self.addEventListener('install', e => { 
+                    e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))); 
+                    self.skipWaiting(); 
+                });
+                self.addEventListener('activate', e => {
+                    e.waitUntil(caches.keys().then(ks => Promise.all(ks.map(k => k !== CACHE_NAME && caches.delete(k)))));
+                });
+                self.addEventListener('fetch', e => {
+                    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+                });
             `;
             const swBlob = new Blob([swCode], {type: 'text/javascript'});
             navigator.serviceWorker.register(URL.createObjectURL(swBlob));
@@ -241,8 +293,6 @@
         function populateYearSelector() {
             const yearSelect = document.getElementById('yearFilter');
             yearSelect.innerHTML = '';
-            
-            // Requisito: Opções de 1991 até 2099
             for (let y = 1991; y <= 2099; y++) {
                 const opt = document.createElement('option');
                 opt.value = y;
@@ -256,7 +306,6 @@
             const now = new Date();
             document.getElementById('monthFilter').value = String(now.getMonth() + 1).padStart(2, '0');
             document.getElementById('yearFilter').value = now.getFullYear();
-            
             document.getElementById('detailModal').classList.remove('hidden');
             renderDetailList();
         }
@@ -267,8 +316,6 @@
             const container = document.getElementById('detailListContainer');
             const selectedMonth = document.getElementById('monthFilter').value;
             const selectedYear = document.getElementById('yearFilter').value;
-            
-            // Atualiza Mini Calendário
             const monthsShort = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
             document.getElementById('calIconMonth').innerText = monthsShort[parseInt(selectedMonth)-1];
             document.getElementById('calIconYear').innerText = selectedYear.toString().slice(-2);
@@ -304,7 +351,6 @@
                     document.getElementById('dateSelector').dispatchEvent(new Event('change'));
                     closeDetailModal();
                 };
-                
                 const doneCount = task.items.filter(i => i.done).length;
                 item.innerHTML = `
                     <div>
@@ -317,7 +363,7 @@
             });
         }
 
-        // --- AUXILIARES ---
+        // --- INICIALIZAÇÃO E AUXILIARES ---
         document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('dateSelector').value = today;
