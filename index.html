@@ -225,20 +225,26 @@
         });
 
         function updateHeader(date) {
-            // Ajuste para evitar erro de fuso horário na exibição do nome do dia
-            const localizedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-            
+            // Se a data for inválida (campo limpo), não faz nada aqui (o onchange resolve)
+            if (isNaN(date.getTime())) return;
+
             document.getElementById('currentMonthDisplay').innerText = date.toLocaleDateString('pt-BR', { month: 'long' });
             document.getElementById('currentDayNumDisplay').innerText = date.toLocaleDateString('pt-BR', { day: 'numeric' });
             
-            // Atualiza o nome do dia (TERÇA, QUARTA, etc)
             const dayName = date.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0];
             document.getElementById('currentDayNameDisplay').innerText = dayName;
         }
 
         document.getElementById('dateSelector').onchange = (e) => {
-            const val = e.target.value;
-            const d = new Date(val + 'T12:00:00'); // T12:00 garante que pegue o dia certo independente do fuso
+            let val = e.target.value;
+            
+            // CONSERTO DO ERRO: Se o usuário limpar o campo, volta para hoje
+            if (!val) {
+                val = new Date().toISOString().split('T')[0];
+                document.getElementById('dateSelector').value = val;
+            }
+
+            const d = new Date(val + 'T12:00:00');
             updateHeader(d);
             renderTasks(val);
         };
