@@ -106,7 +106,7 @@
     </div>
 
     <div id="addModal" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center hidden p-6 backdrop-blur-sm">
-        <div class="bg-white rounded-ios-lg p-6 w-full max-w-sm shadow-2xl scale-100">
+        <div class="bg-white rounded-ios-lg p-6 w-full max-sm shadow-2xl scale-100">
             <h3 class="text-xl font-bold mb-4">Nova Atividade</h3>
             <input type="text" id="newTaskTitle" placeholder="O que precisa ser feito?" class="w-full p-4 bg-iosBg rounded-ios mb-3 outline-none font-medium">
             <textarea id="newTaskItems" placeholder="Sub-tarefas (uma por linha)" class="w-full p-4 bg-iosBg rounded-ios mb-6 h-32 outline-none text-sm"></textarea>
@@ -118,13 +118,14 @@
     </div>
 
     <script>
-        // --- LÓGICA DE INSTALAÇÃO (PWA AUTO-CONTIDO) ---
+        // --- LÓGICA DE INSTALAÇÃO E SERVICE WORKER REFORÇADO ---
         let deferredPrompt;
+        const CACHE_NAME = 'tarefas-pro-v4'; // Versão do Cache
 
         const manifest = {
             "name": "Tarefas Diárias Pro",
             "short_name": "TarefasPro",
-            "start_url": ".",
+            "start_url": "./",
             "display": "standalone",
             "background_color": "#F2F2F7",
             "theme_color": "#007AFF",
@@ -139,8 +140,32 @@
 
         if ('serviceWorker' in navigator) {
             const swCode = `
-                self.addEventListener('install', e => self.skipWaiting());
-                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+                const CACHE_NAME = '${CACHE_NAME}';
+                const ASSETS = [
+                    './',
+                    'https://cdn.tailwindcss.com'
+                ];
+
+                self.addEventListener('install', e => {
+                    e.waitUntil(
+                        caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+                    );
+                    self.skipWaiting();
+                });
+
+                self.addEventListener('activate', e => {
+                    e.waitUntil(
+                        caches.keys().then(keys => Promise.all(
+                            keys.map(key => { if(key !== CACHE_NAME) return caches.delete(key); })
+                        ))
+                    );
+                });
+
+                self.addEventListener('fetch', e => {
+                    e.respondWith(
+                        fetch(e.request).catch(() => caches.match(e.request))
+                    );
+                });
             `;
             const swBlob = new Blob([swCode], {type: 'text/javascript'});
             const swURL = URL.createObjectURL(swBlob);
@@ -225,25 +250,19 @@
         });
 
         function updateHeader(date) {
-            // Se a data for inválida (campo limpo), não faz nada aqui (o onchange resolve)
             if (isNaN(date.getTime())) return;
-
             document.getElementById('currentMonthDisplay').innerText = date.toLocaleDateString('pt-BR', { month: 'long' });
             document.getElementById('currentDayNumDisplay').innerText = date.toLocaleDateString('pt-BR', { day: 'numeric' });
-            
             const dayName = date.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0];
             document.getElementById('currentDayNameDisplay').innerText = dayName;
         }
 
         document.getElementById('dateSelector').onchange = (e) => {
             let val = e.target.value;
-            
-            // CONSERTO DO ERRO: Se o usuário limpar o campo, volta para hoje
             if (!val) {
                 val = new Date().toISOString().split('T')[0];
                 document.getElementById('dateSelector').value = val;
             }
-
             const d = new Date(val + 'T12:00:00');
             updateHeader(d);
             renderTasks(val);
