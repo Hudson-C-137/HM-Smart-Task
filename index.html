@@ -174,7 +174,7 @@
     </div>
 
     <script>
-        // --- CONFIGURAÇÃO PWA (MANIFESTO DINÂMICO) ---
+        // --- CONFIGURAÇÃO PWA (AJUSTADO PARA CORRIGIR ÍCONE PRETO) ---
         const manifest = {
             "name": "Tarefas Diárias Pro",
             "short_name": "Tarefas Pro",
@@ -186,7 +186,7 @@
                 "src": "https://cdn-icons-png.flaticon.com/512/4345/4345573.png",
                 "sizes": "512x512",
                 "type": "image/png",
-                "purpose": "any maskable"
+                "purpose": "any" // Mudado de 'any maskable' para 'any' para evitar fundo preto no splash
             }]
         };
         const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
@@ -203,7 +203,7 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            installBtn.classList.remove('hidden'); // Mostra o botão se puder instalar
+            installBtn.classList.remove('hidden');
         });
 
         installBtn.addEventListener('click', async () => {
@@ -217,7 +217,7 @@
         });
 
         // --- SERVICE WORKER ---
-        const CACHE_NAME = 'tarefas-pro-v12';
+        const CACHE_NAME = 'tarefas-pro-v13'; // Incrementado para forçar atualização
         if ('serviceWorker' in navigator) {
             const swCode = `
                 const CACHE_NAME = '${CACHE_NAME}';
